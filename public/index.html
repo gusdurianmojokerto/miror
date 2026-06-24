@@ -3,10 +3,280 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>Phone Mirror</title>
+  <title>Scrcpy Mirror Control</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .status {
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 500;
+      font-size: 16px;
+    }
+    
+    .status.idle {
+      background: #f0f0f0;
+      color: #666;
+    }
+    
+    .status.scanning {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status.ready {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .device-list {
+      margin-bottom: 20px;
+    }
+    
+    .device-item {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 2px solid #e9ecef;
+    }
+    
+    .device-item.found {
+      border-color: #28a745;
+      background: #d4edda;
+    }
+    
+    .device-id {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    
+    .device-status {
+      font-size: 14px;
+      color: #28a745;
+    }
+    
+    .no-devices {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-style: italic;
+    }
+    
+    button {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-scan {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-scan:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-connect {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-connect:hover:not(:disabled) {
+      background: #218838;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+    }
+    
+    .btn-disconnect {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-disconnect:hover:not(:disabled) {
+      background: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+    }
+    
+    .instructions {
+      background: #e7f3ff;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .instructions h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    
+    .instructions ol {
+      margin-left: 20px;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.8;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .server-url {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #ffc107;
+    }
+    
+    .server-url strong {
+      color: #856404;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 Scrcpy Mirror</h1>
+    <p class="subtitle">Mirror HP ke Laptop via USB</p>
+    
+    <div class="instructions">
+      <h3>Langkah-langkah:</h3>
+      <ol>
+        <li>Jalankan server lokal di laptop (npm start)</li>
+        <li>Masukkan URL server lokal di bawah</li>
+        <li>Colok HP ke laptop via USB</li>
+        <li>Aktifkan USB Debugging di HP</li>
+        <li>Klik "Scan Perangkat"</li>
+        <li>Klik "Connect" untuk mulai mirroring</li>
+      </ol>
+    </div>
+    
+    <div class="server-url">
+      <strong>Server Lokal:</strong><br>
+      <input 
+        type="text" 
+        id="serverURL" 
+        placeholder="http://localhost:8080"
+        value="http://localhost:8080"
+      >
+    </div>
+    
+    <div id="status" class="status idle">
+      Masukkan URL server lalu klik Scan
+    </div>
+    
+    <div id="devices" class="device-list"></div>
+    
+    <button id="btnScan" class="btn-scan">
+      🔍 Scan Perangkat
+    </button>
+    
+    <button id="btnConnect" class="btn-connect" disabled>
+      ✅ Connect
+    </button>
+    
+    <button id="btnDisconnect" class="btn-disconnect" style="display: none;">
+      ❌ Disconnect
+    </button>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>
     * {
       margin: 0;
       padding: 0;

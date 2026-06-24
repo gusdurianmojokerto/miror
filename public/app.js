@@ -1,76 +1,79 @@
-let checkInterval = null;
-let hasDevice = false;
-let isRunning = false;
+let devices = [];
+let serverURL = localStorage.getItem('serverURL') || 'http://localhost:8080';
 
 const statusEl = document.getElementById('status');
-const deviceInfoEl = document.getElementById('deviceInfo');
-const btnStart = document.getElementById('btnStart');
-const btnStop = document.getElementById('btnStop');
+const devicesEl = document.getElementById('devices');
+const serverURLInput = document.getElementById('serverURL');
+const btnScan = document.getElementById('btnScan');
+const btnConnect = document.getElementById('btnConnect');
+const btnDisconnect = document.getElementById('btnDisconnect');
+
+serverURLInput.value = serverURL;
 
 function updateStatus(message, className) {
   statusEl.textContent = message;
   statusEl.className = `status ${className}`;
 }
 
-function showNotification(message) {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('Scrcpy Mirror', {
-      body: message,
-      icon: '/icon.png'
-    });
+function displayDevices() {
+  if (devices.length === 0) {
+    devicesEl.innerHTML = '<div class="no-devices">Tidak ada perangkat terdeteksi</div>';
+    return;
   }
+  
+  devicesEl.innerHTML = devices.map(device => `
+    <div class="device-item found">
+      <div class="device-id">📱 ${device.id}</div>
+      <div class="device-status">Status: Ready</div>
+    </div>
+  `).join('');
 }
 
-async function checkDevice() {
-  try {
-    const response = await fetch('/api/check');
-    const data = await response.json();
-    
-    if (data.success) {
-      hasDevice = data.hasDevice;
-      isRunning = data.isRunning;
-      
-      if (isRunning) {
-        updateStatus('✅ Mirroring AKTIF - Layar HP ditampilkan', 'connected');
-        btnStart.style.display = 'none';
-        btnStop.style.display = 'block';
-        deviceInfoEl.style.display = 'block';
-        deviceInfoEl.className = 'device-info active';
-        deviceInfoEl.innerHTML = `
-          <div class="device-id">🟢 Status: Mirroring Aktif</div>
-          <div class="device-status">Layar HP sedang ditampilkan di laptop</div>
-        `;
-      } else if (hasDevice) {
-        updateStatus('📱 HP Terdeteksi! Siap untuk mirroring', 'ready');
-        btnStart.disabled = false;
-        btnStart.style.display = 'block';
-        btnStop.style.display = 'none';
-        deviceInfoEl.style.display = 'block';
-        deviceInfoEl.className = 'device-info active';
-        deviceInfoEl.innerHTML = `
-          <div class="device-id">Device: ${data.devices[0].id}</div>
-          <div class="device-status">Status: Connected via USB</div>
-        `;
-      } else {
-        updateStatus('⚠️ Tidak ada HP terdeteksi. Colok USB & aktifkan USB Debugging', 'idle');
-        btnStart.disabled = true;
-        btnStart.style.display = 'block';
-        btnStop.style.display = 'none';
-        deviceInfoEl.style.display = 'none';
-      }
-    }
-  } catch (error) {
-    console.error('Check error:', error);
-  }
-}
+serverURLInput.addEventListener('change', () => {
+  serverURL = serverURLInput.value.trim();
+  localStorage.setItem('serverURL', serverURL);
+});
 
-btnStart.addEventListener('click', async () => {
-  updateStatus('🔄 Memulai mirroring...', 'checking');
-  btnStart.disabled = true;
-  btnStart.innerHTML = '<span class="loading"></span>Starting...';
+btnScan.addEventListener('click', async () => {
+  updateStatus('🔍 Scanning perangkat...', 'scanning');
+  btnScan.innerHTML = '<span class="loading"></span>Scanning...';
+  btnScan.disabled = true;
   
   try {
-    const response = await fetch('/api/start', {
+    const response = await fetch(`${serverURL}/api/check`);
+    const data = await response.json();
+    
+    if (data.success && data.hasDevice) {
+      devices = data.devices;
+      displayDevices();
+      updateStatus(`✅ Ditemukan ${devices.length} perangkat!`, 'ready');
+      btnConnect.disabled = false;
+    } else {
+      devicesEl.innerHTML = '<div class="no-devices">❌ Tidak ada HP terdeteksi. Cek USB Debugging!</div>';
+      updateStatus('⚠️ Tidak ada perangkat. Pastikan USB Debugging aktif', 'error');
+      btnConnect.disabled = true;
+    }
+  } catch (error) {
+    updateStatus('❌ Error: Tidak bisa terhubung ke server lokal!', 'error');
+    devicesEl.innerHTML = '<div class="no-devices">⚠️ Server lokal tidak berjalan. Jalankan "npm start" di laptop!</div>';
+  }
+  
+  btnScan.innerHTML = '🔍 Scan Perangkat';
+  btnScan.disabled = false;
+});
+
+btnConnect.addEventListener('click', async () => {
+  if (devices.length === 0) {
+    updateStatus('❌ Tidak ada perangkat. Scan dulu!', 'error');
+    return;
+  }
+  
+  updateStatus('🔄 Memulai mirroring...', 'scanning');
+  btnConnect.disabled = true;
+  btnConnect.innerHTML = '<span class="loading"></span>Connecting...';
+  
+  try {
+    const response = await fetch(`${serverURL}/api/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -78,26 +81,25 @@ btnStart.addEventListener('click', async () => {
     const data = await response.json();
     
     if (data.success) {
-      updateStatus('✅ Mirroring AKTIF! Layar HP ditampilkan di laptop', 'connected');
-      showNotification('Mirroring dimulai! Layar HP sekarang ditampilkan di laptop');
-      btnStart.style.display = 'none';
-      btnStop.style.display = 'block';
-      isRunning = true;
+      updateStatus('✅ Mirroring AKTIF! Cek layar laptop', 'connected');
+      btnScan.disabled = true;
+      btnConnect.style.display = 'none';
+      btnDisconnect.style.display = 'block';
     } else {
       updateStatus('❌ Error: ' + data.error, 'error');
-      btnStart.disabled = false;
-      btnStart.innerHTML = '🚀 Start Mirroring';
+      btnConnect.disabled = false;
+      btnConnect.innerHTML = '✅ Connect';
     }
   } catch (error) {
     updateStatus('❌ Error: ' + error.message, 'error');
-    btnStart.disabled = false;
-    btnStart.innerHTML = '🚀 Start Mirroring';
+    btnConnect.disabled = false;
+    btnConnect.innerHTML = '✅ Connect';
   }
 });
 
-btnStop.addEventListener('click', async () => {
+btnDisconnect.addEventListener('click', async () => {
   try {
-    const response = await fetch('/api/stop', {
+    const response = await fetch(`${serverURL}/api/stop`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -106,21 +108,13 @@ btnStop.addEventListener('click', async () => {
     
     if (data.success) {
       updateStatus('⏹️ Mirroring dihentikan', 'idle');
-      showNotification('Mirroring dihentikan');
-      btnStop.style.display = 'none';
-      btnStart.style.display = 'block';
-      btnStart.innerHTML = '🚀 Start Mirroring';
-      isRunning = false;
-      checkDevice();
+      btnScan.disabled = false;
+      btnConnect.style.display = 'block';
+      btnConnect.disabled = devices.length === 0;
+      btnConnect.innerHTML = '✅ Connect';
+      btnDisconnect.style.display = 'none';
     }
   } catch (error) {
     updateStatus('❌ Error: ' + error.message, 'error');
   }
 });
-
-if ('Notification' in window && Notification.permission === 'default') {
-  Notification.requestPermission();
-}
-
-checkDevice();
-checkInterval = setInterval(checkDevice, 2000);
