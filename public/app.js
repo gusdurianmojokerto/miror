@@ -1,163 +1,126 @@
-let devices = [];
-let isConnected = false;
-let serverURL = localStorage.getItem('serverURL') || '';
+let checkInterval = null;
+let hasDevice = false;
+let isRunning = false;
 
 const statusEl = document.getElementById('status');
-const devicesEl = document.getElementById('devices');
-const serverURLInput = document.getElementById('serverURL');
-const btnSaveServer = document.getElementById('btnSaveServer');
-const btnScan = document.getElementById('btnScan');
-const btnConnect = document.getElementById('btnConnect');
-const btnDisconnect = document.getElementById('btnDisconnect');
-const serverInfoEl = document.getElementById('serverInfo');
-
-if (serverURL) {
-  serverURLInput.value = serverURL;
-  updateStatus('Siap. Masukkan IP server laptop lalu klik Scan', 'idle');
-}
+const deviceInfoEl = document.getElementById('deviceInfo');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
 
 function updateStatus(message, className) {
   statusEl.textContent = message;
   statusEl.className = `status ${className}`;
 }
 
-function displayDevices() {
-  if (devices.length === 0) {
-    devicesEl.innerHTML = '<div class="no-devices">Tidak ada perangkat terdeteksi</div>';
-    return;
+function showNotification(message) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Scrcpy Mirror', {
+      body: message,
+      icon: '/icon.png'
+    });
   }
-  
-  devicesEl.innerHTML = devices.map(device => `
-    <div class="device-item active">
-      <div class="device-id">${device.id}</div>
-      <div class="device-status">Status: Connected</div>
-    </div>
-  `).join('');
 }
 
-btnSaveServer.addEventListener('click', async () => {
-  const url = serverURLInput.value.trim();
-  if (!url) {
-    updateStatus('Masukkan URL server laptop!', 'error');
-    return;
-  }
-  
-  serverURL = url.replace(/\/$/, '');
-  localStorage.setItem('serverURL', serverURL);
-  
-  updateStatus('Memeriksa koneksi...', 'scanning');
-  
+async function checkDevice() {
   try {
-    const response = await fetch(`${serverURL}/api/health`);
+    const response = await fetch('/api/check');
     const data = await response.json();
     
     if (data.success) {
-      updateStatus('Terhubung ke server! Klik Scan untuk mulai', 'connected');
-      btnScan.disabled = false;
-    } else {
-      updateStatus('Server tidak merespons', 'error');
+      hasDevice = data.hasDevice;
+      isRunning = data.isRunning;
+      
+      if (isRunning) {
+        updateStatus('✅ Mirroring AKTIF - Layar HP ditampilkan', 'connected');
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'block';
+        deviceInfoEl.style.display = 'block';
+        deviceInfoEl.className = 'device-info active';
+        deviceInfoEl.innerHTML = `
+          <div class="device-id">🟢 Status: Mirroring Aktif</div>
+          <div class="device-status">Layar HP sedang ditampilkan di laptop</div>
+        `;
+      } else if (hasDevice) {
+        updateStatus('📱 HP Terdeteksi! Siap untuk mirroring', 'ready');
+        btnStart.disabled = false;
+        btnStart.style.display = 'block';
+        btnStop.style.display = 'none';
+        deviceInfoEl.style.display = 'block';
+        deviceInfoEl.className = 'device-info active';
+        deviceInfoEl.innerHTML = `
+          <div class="device-id">Device: ${data.devices[0].id}</div>
+          <div class="device-status">Status: Connected via USB</div>
+        `;
+      } else {
+        updateStatus('⚠️ Tidak ada HP terdeteksi. Colok USB & aktifkan USB Debugging', 'idle');
+        btnStart.disabled = true;
+        btnStart.style.display = 'block';
+        btnStop.style.display = 'none';
+        deviceInfoEl.style.display = 'none';
+      }
     }
   } catch (error) {
-    updateStatus('Tidak bisa terhubung ke server. Cek URL!', 'error');
+    console.error('Check error:', error);
   }
-});
+}
 
-btnScan.addEventListener('click', async () => {
-  if (!serverURL) {
-    updateStatus('Set URL server dulu!', 'error');
-    return;
-  }
-  
-  updateStatus('Scanning perangkat...', 'scanning');
-  btnScan.innerHTML = '<span class="loading"></span>Scanning...';
-  btnScan.disabled = true;
+btnStart.addEventListener('click', async () => {
+  updateStatus('🔄 Memulai mirroring...', 'checking');
+  btnStart.disabled = true;
+  btnStart.innerHTML = '<span class="loading"></span>Starting...';
   
   try {
-    const response = await fetch(`${serverURL}/api/scan`, {
+    const response = await fetch('/api/start', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     
     const data = await response.json();
     
     if (data.success) {
-      devices = data.devices;
-      displayDevices();
-      updateStatus(
-        devices.length > 0 
-          ? `Ditemukan ${devices.length} perangkat` 
-          : 'Tidak ada perangkat terdeteksi',
-        devices.length > 0 ? 'idle' : 'error'
-      );
-      btnConnect.disabled = devices.length === 0;
+      updateStatus('✅ Mirroring AKTIF! Layar HP ditampilkan di laptop', 'connected');
+      showNotification('Mirroring dimulai! Layar HP sekarang ditampilkan di laptop');
+      btnStart.style.display = 'none';
+      btnStop.style.display = 'block';
+      isRunning = true;
     } else {
-      updateStatus('Error: ' + data.error, 'error');
+      updateStatus('❌ Error: ' + data.error, 'error');
+      btnStart.disabled = false;
+      btnStart.innerHTML = '🚀 Start Mirroring';
     }
   } catch (error) {
-    updateStatus('Error: ' + error.message, 'error');
+    updateStatus('❌ Error: ' + error.message, 'error');
+    btnStart.disabled = false;
+    btnStart.innerHTML = '🚀 Start Mirroring';
   }
-  
-  btnScan.innerHTML = 'Scan Perangkat';
-  btnScan.disabled = false;
 });
 
-btnConnect.addEventListener('click', async () => {
-  if (devices.length === 0) {
-    updateStatus('Tidak ada perangkat. Scan dulu!', 'error');
-    return;
-  }
-  
-  updateStatus('Memulai mirroring...', 'scanning');
-  btnConnect.disabled = true;
-  
+btnStop.addEventListener('click', async () => {
   try {
-    const response = await fetch(`${serverURL}/api/connect`, {
+    const response = await fetch('/api/stop', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     
     const data = await response.json();
     
     if (data.success) {
-      isConnected = true;
-      updateStatus('Mirroring aktif! Lihat layar laptop', 'connected');
-      btnScan.disabled = true;
-      btnConnect.style.display = 'none';
-      btnDisconnect.style.display = 'block';
-    } else {
-      updateStatus('Error: ' + data.error, 'error');
-      btnConnect.disabled = false;
+      updateStatus('⏹️ Mirroring dihentikan', 'idle');
+      showNotification('Mirroring dihentikan');
+      btnStop.style.display = 'none';
+      btnStart.style.display = 'block';
+      btnStart.innerHTML = '🚀 Start Mirroring';
+      isRunning = false;
+      checkDevice();
     }
   } catch (error) {
-    updateStatus('Error: ' + error.message, 'error');
-    btnConnect.disabled = false;
+    updateStatus('❌ Error: ' + error.message, 'error');
   }
 });
 
-btnDisconnect.addEventListener('click', async () => {
-  try {
-    const response = await fetch(`${serverURL}/api/disconnect`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      isConnected = false;
-      updateStatus('Mirroring dihentikan', 'idle');
-      btnScan.disabled = false;
-      btnConnect.style.display = 'block';
-      btnConnect.disabled = devices.length === 0;
-      btnDisconnect.style.display = 'none';
-    }
-  } catch (error) {
-    updateStatus('Error: ' + error.message, 'error');
-  }
-});
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+checkDevice();
+checkInterval = setInterval(checkDevice, 2000);

@@ -4,13 +4,12 @@ const path = require('path');
 const os = require('os');
 
 const app = express();
-const PORT = process.env.PORT || 5555;
+const PORT = 8080;
 
 app.use(express.json());
 app.use(express.static('public'));
 
 let scrcpyProcess = null;
-let connectedDevices = [];
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -42,12 +41,14 @@ function checkADBDevices() {
   });
 }
 
-app.post('/api/scan', async (req, res) => {
+app.get('/api/check', async (req, res) => {
   try {
-    connectedDevices = await checkADBDevices();
+    const devices = await checkADBDevices();
     res.json({ 
       success: true, 
-      devices: connectedDevices
+      devices: devices,
+      hasDevice: devices.length > 0,
+      isRunning: scrcpyProcess !== null
     });
   } catch (error) {
     res.json({ 
@@ -57,19 +58,21 @@ app.post('/api/scan', async (req, res) => {
   }
 });
 
-app.post('/api/connect', async (req, res) => {
+app.post('/api/start', async (req, res) => {
   try {
-    if (connectedDevices.length === 0) {
+    const devices = await checkADBDevices();
+    
+    if (devices.length === 0) {
       return res.json({ 
         success: false, 
-        error: 'Tidak ada perangkat terdeteksi. Scan dulu!' 
+        error: 'Tidak ada HP terdeteksi. Cek USB Debugging!' 
       });
     }
     
     if (scrcpyProcess) {
       return res.json({ 
         success: false, 
-        error: 'Mirroring sudah aktif' 
+        error: 'Mirroring sudah berjalan' 
       });
     }
     
@@ -83,11 +86,17 @@ app.post('/api/connect', async (req, res) => {
     
     scrcpyProcess.on('close', (code) => {
       scrcpyProcess = null;
+      console.log('Scrcpy stopped');
+    });
+    
+    scrcpyProcess.on('error', (err) => {
+      console.error('Scrcpy error:', err);
+      scrcpyProcess = null;
     });
     
     res.json({ 
       success: true,
-      message: 'Mirroring dimulai! Cek layar laptop'
+      message: 'Mirroring aktif! Layar HP ditampilkan di laptop'
     });
   } catch (error) {
     res.json({ 
@@ -97,36 +106,34 @@ app.post('/api/connect', async (req, res) => {
   }
 });
 
-app.post('/api/disconnect', (req, res) => {
+app.post('/api/stop', (req, res) => {
   if (scrcpyProcess) {
     scrcpyProcess.kill();
     scrcpyProcess = null;
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      message: 'Mirroring dihentikan' 
+    });
   } else {
-    res.json({ success: false, error: 'Tidak ada mirroring aktif' });
+    res.json({ 
+      success: false, 
+      error: 'Tidak ada mirroring aktif' 
+    });
   }
-});
-
-app.get('/api/status', (req, res) => {
-  res.json({ 
-    success: true,
-    isConnected: scrcpyProcess !== null,
-    serverIP: getLocalIP()
-  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
-  console.log('========================================');
-  console.log('  Scrcpy Web Mirror Server');
-  console.log('========================================');
+  console.log('╔════════════════════════════════════════╗');
+  console.log('║   Scrcpy Web Mirror Server             ║');
+  console.log('╚════════════════════════════════════════╝');
   console.log('');
-  console.log(`Server: http://${ip}:${PORT}`);
+  console.log(`📱 Buka di HP: http://${ip}:${PORT}`);
   console.log('');
-  console.log('Cara pakai:');
-  console.log('1. Sambungkan HP ke laptop via USB');
+  console.log('Langkah:');
+  console.log('1. Colok HP ke laptop via USB');
   console.log('2. Aktifkan USB Debugging di HP');
-  console.log(`3. Buka http://${ip}:${PORT} di browser HP`);
-  console.log('4. Klik Scan → Connect');
+  console.log('3. Buka URL di atas di browser HP');
+  console.log('4. Klik tombol Connect');
   console.log('');
 });
