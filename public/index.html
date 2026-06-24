@@ -213,11 +213,10 @@
     <div class="instructions">
       <h3>Langkah-langkah:</h3>
       <ol>
-        <li>Pastikan HP sudah tersambung ke laptop via USB</li>
-        <li>Pastikan USB Debugging sudah aktif</li>
-        <li>Klik "Enable Wireless" untuk mengaktifkan koneksi wireless</li>
-        <li>Cabut kabel USB</li>
-        <li>Klik "Connect" untuk mulai mirroring via WiFi</li>
+        <li>Sambungkan HP ke laptop via USB</li>
+        <li>Aktifkan USB Debugging di HP</li>
+        <li>Klik "Scan Perangkat"</li>
+        <li>Klik "Connect" untuk mulai mirroring</li>
       </ol>
     </div>
     
@@ -225,17 +224,13 @@
       Siap untuk memulai
     </div>
     
-    <div id="connectionInfo" style="display: none;" class="device-item active">
-      <div class="device-id">IP Perangkat</div>
-      <div id="deviceIP" style="font-family: monospace; margin: 5px 0;"></div>
-      <div class="device-status" id="connectionStatus">Menunggu koneksi...</div>
-    </div>
+    <div id="devices" class="devices"></div>
     
-    <button id="btnEnable" class="btn-scan">
-      Enable Wireless
+    <button id="btnScan" class="btn-scan">
+      Scan Perangkat
     </button>
     
-    <button id="btnConnect" class="btn-connect" style="display: none;">
+    <button id="btnConnect" class="btn-connect" disabled>
       Connect
     </button>
     

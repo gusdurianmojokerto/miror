@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 
@@ -8,6 +8,9 @@ const PORT = process.env.PORT || 5555;
 
 app.use(express.json());
 app.use(express.static('public'));
+
+let scrcpyProcess = null;
+let connectedDevices = [];
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -21,44 +24,30 @@ function getLocalIP() {
   return 'localhost';
 }
 
-function enableTcpip() {
+function checkADBDevices() {
   return new Promise((resolve, reject) => {
-    exec(path.join(__dirname, 'adb.exe') + ' tcpip 5555', (error, stdout, stderr) => {
+    const adbPath = path.join(__dirname, 'adb.exe');
+    exec(`"${adbPath}" devices`, (error, stdout, stderr) => {
       if (error) {
         reject(error);
         return;
       }
-      resolve(stdout);
+      const lines = stdout.split('\n').slice(1).filter(line => line.trim());
+      const devices = lines.map(line => {
+        const parts = line.trim().split('\t');
+        return { id: parts[0], status: parts[1] };
+      }).filter(d => d.status === 'device');
+      resolve(devices);
     });
   });
 }
 
-function getDeviceIP() {
-  return new Promise((resolve, reject) => {
-    exec(path.join(__dirname, 'adb.exe') + ' shell ip route', (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      const match = stdout.match(/src\s+(\d+\.\d+\.\d+\.\d+)/);
-      if (match) {
-        resolve(match[1]);
-      } else {
-        reject(new Error('Could not get device IP'));
-      }
-    });
-  });
-}
-
-app.post('/api/enable-wireless', async (req, res) => {
+app.post('/api/scan', async (req, res) => {
   try {
-    await enableTcpip();
-    const deviceIP = await getDeviceIP();
+    connectedDevices = await checkADBDevices();
     res.json({ 
       success: true, 
-      deviceIP: deviceIP,
-      port: 5555,
-      laptopIP: getLocalIP()
+      devices: connectedDevices
     });
   } catch (error) {
     res.json({ 
@@ -68,18 +57,76 @@ app.post('/api/enable-wireless', async (req, res) => {
   }
 });
 
+app.post('/api/connect', async (req, res) => {
+  try {
+    if (connectedDevices.length === 0) {
+      return res.json({ 
+        success: false, 
+        error: 'Tidak ada perangkat terdeteksi. Scan dulu!' 
+      });
+    }
+    
+    if (scrcpyProcess) {
+      return res.json({ 
+        success: false, 
+        error: 'Mirroring sudah aktif' 
+      });
+    }
+    
+    const scrcpyPath = path.join(__dirname, 'scrcpy.exe');
+    scrcpyProcess = spawn(scrcpyPath, [
+      '--max-size=1920',
+      '--window-title=Phone Mirror',
+      '--turn-screen-off',
+      '--stay-awake'
+    ]);
+    
+    scrcpyProcess.on('close', (code) => {
+      scrcpyProcess = null;
+    });
+    
+    res.json({ 
+      success: true,
+      message: 'Mirroring dimulai! Cek layar laptop'
+    });
+  } catch (error) {
+    res.json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+app.post('/api/disconnect', (req, res) => {
+  if (scrcpyProcess) {
+    scrcpyProcess.kill();
+    scrcpyProcess = null;
+    res.json({ success: true });
+  } else {
+    res.json({ success: false, error: 'Tidak ada mirroring aktif' });
+  }
+});
+
+app.get('/api/status', (req, res) => {
+  res.json({ 
+    success: true,
+    isConnected: scrcpyProcess !== null,
+    serverIP: getLocalIP()
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
   console.log('========================================');
   console.log('  Scrcpy Web Mirror Server');
   console.log('========================================');
   console.log('');
-  console.log(`Server berjalan di: http://${ip}:${PORT}`);
+  console.log(`Server: http://${ip}:${PORT}`);
   console.log('');
-  console.log('Instruksi:');
+  console.log('Cara pakai:');
   console.log('1. Sambungkan HP ke laptop via USB');
   console.log('2. Aktifkan USB Debugging di HP');
   console.log(`3. Buka http://${ip}:${PORT} di browser HP`);
-  console.log('4. Ikuti petunjuk di layar HP');
+  console.log('4. Klik Scan → Connect');
   console.log('');
 });
