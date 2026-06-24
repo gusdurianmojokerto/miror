@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/browser-mirror.html" }
-  ]
+    { "source": "/(.*)", "destination": "/public/browser-mirror.html" }
+  ],
+  "buildCommand": "vite build",
+  "outputDirectory": "dist"
 }
