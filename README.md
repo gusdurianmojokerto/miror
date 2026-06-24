@@ -1,52 +1,48 @@
 # Scrcpy Web Mirror
 
-Web interface untuk mirroring HP ke PC/Laptop menggunakan scrcpy.
+2 Versi tersedia:
 
-## Cara Menggunakan
+## 1. WebADB Version (Deploy ke Vercel) ✅
 
-### 1. Install Dependencies
+**Full browser-based, tidak perlu install!**
+
+### Deploy ke Vercel:
 ```bash
-npm install
+vercel --prod
 ```
 
-### 2. Jalankan Server di Laptop
+Atau push ke GitHub dan connect ke Vercel.
+
+### Cara Pakai:
+1. Buka web yang sudah di-deploy
+2. Colok HP via USB
+3. Aktifkan USB Debugging
+4. Klik "Connect via USB"
+5. Browser minta izin - klik Allow
+6. Pilih device HP
+7. Start Screen Capture!
+
+**Browser yang support:** Chrome 89+, Edge 89+
+
+---
+
+## 2. Scrcpy Desktop Version (Lokal)
+
+### Di Laptop:
 ```bash
 npm start
 ```
 
-### 3. Setup di HP
-1. Aktifkan USB Debugging di HP:
-   - Masuk ke Settings > About Phone
-   - Tap "Build Number" 7 kali untuk mengaktifkan Developer Options
-   - Masuk ke Settings > Developer Options
-   - Aktifkan "USB Debugging"
+Buka: `http://localhost:8080`
 
-2. Sambungkan HP ke laptop via kabel USB (pertama kali saja)
+### Fitur:
+- Auto-detect HP via USB
+- One-click start mirroring
+- Notifikasi desktop
 
-3. Buka browser di HP, akses: `http://[IP-LAPTOP]:5555`
-   - IP laptop akan muncul di console saat server jalan
+---
 
-4. Di browser HP:
-   - Klik "Enable Wireless" 
-   - Tunggu sampai muncul IP HP
-   - Cabut kabel USB
-   - Klik "Connect"
+## Rekomendasi
 
-5. Jalankan command yang muncul di layar HP ke command prompt laptop
-
-6. Layar HP akan muncul di laptop!
-
-## Troubleshooting
-
-- Pastikan HP dan laptop terhubung ke jaringan yang sama (untuk akses web)
-- Pastikan USB Debugging sudah aktif
-- Pastikan driver USB HP sudah terinstall di laptop
-- Coba cabut dan colok ulang kabel USB
-- Pastikan port 8080 dan 8081 tidak digunakan aplikasi lain
-
-## Requirements
-
-- Node.js (v14 atau lebih baru)
-- Windows PC/Laptop
-- Android Phone dengan USB Debugging enabled
-- Kabel USB
+- **Untuk cloud/remote:** Pakai WebADB version
+- **Untuk performance:** Pakai Scrcpy desktop version

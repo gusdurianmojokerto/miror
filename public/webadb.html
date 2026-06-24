@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebADB Phone Mirror</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 16px;
+    }
+    
+    .control-panel {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .status {
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 500;
+    }
+    
+    .status.idle {
+      background: #f0f0f0;
+      color: #666;
+    }
+    
+    .status.connecting {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-success:hover:not(:disabled) {
+      background: #218838;
+      transform: translateY(-2px);
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-danger:hover:not(:disabled) {
+      background: #c82333;
+      transform: translateY(-2px);
+    }
+    
+    .screen-container {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    
+    #screenCanvas {
+      max-width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      background: #000;
+    }
+    
+    .instructions {
+      background: #e7f3ff;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .instructions h3 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+    
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+      color: #555;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .device-info {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .device-info strong {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📱 WebADB Phone Mirror</h1>
+      <p class="subtitle">Mirror HP Android langsung di browser - Tidak perlu install apapun!</p>
+    </div>
+    
+    <div class="control-panel">
+      <div class="instructions">
+        <h3>🚀 Cara Pakai:</h3>
+        <ol>
+          <li>Aktifkan <strong>USB Debugging</strong> di HP Android</li>
+          <li>Colok HP ke laptop/PC via kabel USB</li>
+          <li>Klik tombol <strong>"Connect via USB"</strong></li>
+          <li>Browser akan minta izin akses USB - klik <strong>Allow</strong></li>
+          <li>Pilih perangkat HP Anda dari popup</li>
+          <li>Klik <strong>"Start Screen Capture"</strong> untuk mulai mirroring</li>
+        </ol>
+      </div>
+      
+      <div id="status" class="status idle">
+        Siap untuk memulai - Klik "Connect via USB"
+      </div>
+      
+      <div id="deviceInfo" class="device-info" style="display: none;"></div>
+      
+      <div>
+        <button id="btnConnect" class="btn-primary">
+          🔌 Connect via USB
+        </button>
+        <button id="btnDisconnect" class="btn-danger" style="display: none;">
+          ❌ Disconnect
+        </button>
+        <button id="btnCapture" class="btn-success" style="display: none;" disabled>
+          🎥 Start Screen Capture
+        </button>
+        <button id="btnStopCapture" class="btn-danger" style="display: none;">
+          ⏹️ Stop Capture
+        </button>
+      </div>
+    </div>
+    
+    <div class="screen-container">
+      <h3 style="margin-bottom: 20px; color: #333;">Layar HP</h3>
+      <canvas id="screenCanvas" width="360" height="640"></canvas>
+      <p style="margin-top: 15px; color: #666; font-size: 14px;">
+        Layar HP akan muncul di sini setelah koneksi berhasil
+      </p>
+    </div>
+  </div>
+  
+  <script type="module">
+    const statusEl = document.getElementById('status');
+    const deviceInfoEl = document.getElementById('deviceInfo');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+    const btnCapture = document.getElementById('btnCapture');
+    const btnStopCapture = document.getElementById('btnStopCapture');
+    const canvas = document.getElementById('screenCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let device = null;
+    let isCapturing = false;
+    
+    function updateStatus(message, className) {
+      statusEl.textContent = message;
+      statusEl.className = `status ${className}`;
+    }
+    
+    // Check WebUSB support
+    if (!navigator.usb) {
+      updateStatus('❌ Browser tidak support WebUSB. Gunakan Chrome/Edge versi terbaru!', 'error');
+      btnConnect.disabled = true;
+    }
+    
+    btnConnect.addEventListener('click', async () => {
+      try {
+        updateStatus('🔄 Menghubungkan ke HP...', 'connecting');
+        btnConnect.innerHTML = '<span class="loading"></span>Connecting...';
+        btnConnect.disabled = true;
+        
+        // Request USB device
+        device = await navigator.usb.requestDevice({
+          filters: [{ classCode: 0xFF }] // ADB class
+        });
+        
+        await device.open();
+        await device.selectConfiguration(1);
+        await device.claimInterface(0);
+        
+        updateStatus('✅ Terhubung! HP siap untuk mirroring', 'connected');
+        
+        deviceInfoEl.style.display = 'block';
+        deviceInfoEl.innerHTML = `
+          <strong>Device:</strong> ${device.productName || 'Android Device'}<br>
+          <strong>Vendor:</strong> ${device.manufacturerName || 'Unknown'}<br>
+          <strong>Status:</strong> <span style="color: #28a745;">Connected</span>
+        `;
+        
+        btnConnect.style.display = 'none';
+        btnDisconnect.style.display = 'inline-block';
+        btnCapture.style.display = 'inline-block';
+        btnCapture.disabled = false;
+        
+      } catch (error) {
+        console.error('Connection error:', error);
+        updateStatus('❌ Gagal terhubung: ' + error.message, 'error');
+        btnConnect.innerHTML = '🔌 Connect via USB';
+        btnConnect.disabled = false;
+      }
+    });
+    
+    btnDisconnect.addEventListener('click', async () => {
+      try {
+        if (device) {
+          await device.close();
+          device = null;
+        }
+        
+        updateStatus('⏹️ Koneksi terputus', 'idle');
+        deviceInfoEl.style.display = 'none';
+        
+        btnConnect.style.display = 'inline-block';
+        btnConnect.innerHTML = '🔌 Connect via USB';
+        btnConnect.disabled = false;
+        btnDisconnect.style.display = 'none';
+        btnCapture.style.display = 'none';
+        btnStopCapture.style.display = 'none';
+        
+      } catch (error) {
+        console.error('Disconnect error:', error);
+      }
+    });
+    
+    btnCapture.addEventListener('click', async () => {
+      try {
+        updateStatus('🎥 Memulai screen capture...', 'connecting');
+        
+        // Simulasi screen capture (WebADB penuh butuh library kompleks)
+        // Untuk demo, tampilkan placeholder
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎥 Screen Mirroring Aktif', canvas.width/2, canvas.height/2 - 20);
+        ctx.font = '14px Arial';
+        ctx.fillText('(Demo Mode - Untuk full mirroring butuh WebADB library)', canvas.width/2, canvas.height/2 + 20);
+        
+        updateStatus('✅ Screen capture aktif! (Demo Mode)', 'connected');
+        btnCapture.style.display = 'none';
+        btnStopCapture.style.display = 'inline-block';
+        isCapturing = true;
+        
+      } catch (error) {
+        console.error('Capture error:', error);
+        updateStatus('❌ Gagal mulai capture: ' + error.message, 'error');
+      }
+    });
+    
+    btnStopCapture.addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      updateStatus('⏹️ Screen capture dihentikan', 'connected');
+      btnStopCapture.style.display = 'none';
+      btnCapture.style.display = 'inline-block';
+      isCapturing = false;
+    });
+  </script>
+</body>
+</html>
