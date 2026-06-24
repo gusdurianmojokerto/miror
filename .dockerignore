@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+*.exe
+*.dll
+*.bat
+*.vbs
+scrcpy-server
+README.md

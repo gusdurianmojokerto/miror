@@ -1,0 +1,17 @@
+node_modules
+*.exe
+*.dll
+*.bat
+*.vbs
+scrcpy-server
+adb.exe
+AdbWinApi.dll
+AdbWinUsbApi.dll
+libusb-1.0.dll
+avcodec-61.dll
+avformat-61.dll
+avutil-59.dll
+swresample-5.dll
+SDL2.dll
+icon.png
+opencode.json

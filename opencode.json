@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "marketku": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MarketKu",
+      "options": {
+        "baseURL": "https://router.marketku.id/v1",
+        "apiKey": "sk-15a17714952847cb-2gkax8-7bc1580f"
+      },
+      "models": {
+        "mk/sonnet-4.5": {
+          "name": "Sonnet 4.5"
+        }
+      }
+    }
+  },
+  "model": "marketku/mk/sonnet-4.5"
+}
