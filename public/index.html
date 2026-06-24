@@ -213,20 +213,34 @@
     <div class="instructions">
       <h3>Langkah-langkah:</h3>
       <ol>
+        <li>Jalankan server di laptop: <code>npm run local</code></li>
+        <li>Masukkan IP laptop (contoh: http://192.168.1.5:3001)</li>
         <li>Sambungkan HP ke laptop via USB</li>
         <li>Aktifkan USB Debugging di HP</li>
-        <li>Klik "Scan Perangkat"</li>
-        <li>Klik "Connect" untuk mulai mirroring</li>
+        <li>Klik "Scan Perangkat" lalu "Connect"</li>
       </ol>
     </div>
     
     <div id="status" class="status idle">
-      Siap untuk memulai
+      Masukkan URL server laptop
+    </div>
+    
+    <div class="device-item">
+      <div class="device-id">Server Laptop</div>
+      <input 
+        type="text" 
+        id="serverURL" 
+        placeholder="http://192.168.1.5:3001"
+        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; font-size: 14px;"
+      >
+      <button id="btnSaveServer" class="btn-scan" style="margin-bottom: 0;">
+        Set Server
+      </button>
     </div>
     
     <div id="devices" class="devices"></div>
     
-    <button id="btnScan" class="btn-scan">
+    <button id="btnScan" class="btn-scan" disabled>
       Scan Perangkat
     </button>
     
