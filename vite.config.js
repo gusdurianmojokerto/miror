@@ -4,11 +4,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
-      input: {
-        main: 'public/browser-mirror.html'
-      }
+      input: './public/browser-mirror.html'
     }
   },
+  publicDir: 'public',
   server: {
     port: 3000
   }
